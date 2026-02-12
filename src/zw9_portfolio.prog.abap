@@ -290,7 +290,7 @@ FORM data_retrieval.
     WHERE  a~carrid = @s_carrid
        AND a~connid  = @s_connid
        AND a~fldate  = @s_fldate
-       AND customid IN @s_cid.
+       AND a~customid IN @s_cid.
 
 
   ELSEIF R2 = 'X'.
@@ -312,7 +312,8 @@ FORM data_retrieval.
     WHERE  a~carrid = @s_carrid
        AND a~connid  = @s_connid
        AND a~fldate  = @s_fldate
-       AND a~customid <> 'X'.
+       AND a~customid IN @s_cid
+     AND cancelled <> 'X'.
 
 
 
@@ -335,10 +336,11 @@ FORM data_retrieval.
     WHERE  a~carrid = @s_carrid
        AND a~connid  = @s_connid
        AND a~fldate  = @s_fldate
-       AND a~customid ='X'.
+       AND a~customid IN @s_cid
+        AND cancelled = 'X'.
 
 
-
+*
 *  DATA: ld_color(1) TYPE c.
 *  IF R1 = 'X'.
 *    SELECT a~carrid connid fldate bookid customid loccuram loccurkey order_date cancelled
@@ -348,8 +350,8 @@ FORM data_retrieval.
 *       AND connid  = s_connid
 *       AND fldate  = s_fldate
 *       AND customid IN s_cid.
-
-
+*
+*
 *
 *  ELSEIF R2 = 'X'.
 *    SELECT carrid connid fldate bookid customid loccuram loccurkey order_date cancelled
