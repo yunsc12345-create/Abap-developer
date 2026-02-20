@@ -5,8 +5,7 @@
 *&---------------------------------------------------------------------*
 REPORT ZW8_1.
 
-TABLES:     SCARR.
-
+TABLES : scarr.
 
 TYPE-POOLS: slis.                                 "ALV Declarations
 

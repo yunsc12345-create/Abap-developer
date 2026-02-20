@@ -186,6 +186,7 @@ FORM build_fieldcatalog.
   fieldcatalog-fieldname   = 'CUSTOMID'.
   fieldcatalog-seltext_m   = 'Customer Number'.
   fieldcatalog-col_pos     = 5.
+  fieldcatalog-outputlen   = 8.
   fieldcatalog-hotspot     = 'X'.
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR  fieldcatalog.
