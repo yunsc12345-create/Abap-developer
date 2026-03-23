@@ -1,9 +1,10 @@
 *&---------------------------------------------------------------------*
-*& Report ZW9_PORTFOLIO
+*& Report ZPORTFOLIO
 *&---------------------------------------------------------------------*
 *&
 *&---------------------------------------------------------------------*
-REPORT ZW9_PORTFOLIO.
+REPORT ZPORTFOLIO.
+
 
 
 
@@ -267,10 +268,7 @@ ENDFORM.                    " DISPLAY_ALV_REPORT
 *----------------------------------------------------------------------*
 FORM data_retrieval.
 
-
-  DATA: ld_color(1) TYPE c.
-  IF R1 = 'X'.
-   SELECT
+SELECT
      b~carrname,
      a~carrid,
      a~connid,
@@ -289,56 +287,20 @@ FORM data_retrieval.
        AND a~connid  = @s_connid
        AND a~fldate  = @s_fldate
        AND a~customid IN @s_cid.
+" R1시에 모든 운항 정보 표시
 
-
-  ELSEIF R2 = 'X'.
-   SELECT
-     b~carrname,
-     a~carrid,
-     a~connid,
-     a~fldate,
-     a~bookid,
-     a~customid,
-     a~loccuram,
-     a~loccurkey,
-     a~order_date,
-     a~cancelled
-     FROM scarr AS b
-    RIGHT OUTER JOIN sbook AS a
-     ON b~carrid = a~carrid
-    INTO TABLE @it_sbook
-    WHERE  a~carrid = @s_carrid
-       AND a~connid  = @s_connid
-       AND a~fldate  = @s_fldate
-       AND a~customid IN @s_cid
-     AND cancelled <> 'X'.
-
+IF R2 = 'X'.
+DELETE it_sbook where cancelled = 'X'.
+"정상 운항 정보만 표시
 
 
   ELSEIF R3 = 'X'.
-   SELECT
-     b~carrname,
-     a~carrid,
-     a~connid,
-     a~fldate,
-     a~bookid,
-     a~customid,
-     a~loccuram,
-     a~loccurkey,
-     a~order_date,
-     a~cancelled
-     FROM scarr AS b
-    RIGHT OUTER JOIN sbook AS a
-     ON a~carrid = b~carrid
-    INTO TABLE @it_sbook
-    WHERE  a~carrid = @s_carrid
-       AND a~connid  = @s_connid
-       AND a~fldate  = @s_fldate
-       AND a~customid IN @s_cid
-        AND cancelled = 'X'.
+DELETE it_sbook WHERE cancelled <> 'X'.
+"취소된 운항 표시
 
 
-*
+
+
 *  DATA: ld_color(1) TYPE c.
 *  IF R1 = 'X'.
 *    SELECT a~carrid connid fldate bookid customid loccuram loccurkey order_date cancelled
