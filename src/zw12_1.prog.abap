@@ -34,5 +34,5 @@ IF sy-subrc = 0.
     MODIFY sflight_tab FROM sflight_wa INDEX sy-tabix.
   ENDIF.
 ENDIF.
-
+ " read table은 조건에 맞는 딱 하나의 행만을 불러온다..?
 cl_demo_output=>display( sflight_tab ).
