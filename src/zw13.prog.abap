@@ -1,34 +1,38 @@
 *&---------------------------------------------------------------------*
-*& Report ZW12_HOMEWORK
+*& Report ZW13
 *&---------------------------------------------------------------------*
 *&
 *&---------------------------------------------------------------------*
-REPORT ZW12_HOMEWORK.
+REPORT ZW13.
 
 
 
 
 
 
-TABLES:     sflight.
+
+TABLES:     sbook.
 
 TYPE-POOLS: slis.                                 "ALV Declarations
 
 *Data Declaration
 *----------------
-TYPES: BEGIN OF t_sflight,
-  carrid     TYPE sflight-carrid,
-  connid     TYPE sflight-connid,
-  price      TYPE sflight-price,
-  currency   TYPE sflight-currency,
-  seatsmax  TYPE sflight-seatsmax,
- END OF t_sflight.
+TYPES: BEGIN OF t_sbook,
+  carrid     TYPE sbook-carrid,
+  connid     TYPE sbook-connid,
+*  luggweight TYPE sbook-luggweight,
+  luggweight(6) TYPE P DECIMALS 4, "여기서 6은 바이트로 length가 11자리까지 늘어난것.
+  wunit      TYPE sbook-wunit,
+  loccuram   TYPE sbook-loccuram,
+  loccurkey  TYPE sbook-loccurkey,
+ END OF t_sbook.
 
-DATA: it_sflight TYPE SORTED TABLE OF  t_sflight WITH NON-UNIQUE KEY carrid connid,
-      wa_sflight TYPE t_sflight.
-
-DATA: it_collect type STANDARD TABLE OF t_sflight,
-      it_collect2 type STANDARD TABLE OF t_sflight.
+*DATA: it_sbook TYPE STANDARD TABLE OF t_sbook,
+DATA: it_sbook TYPE SORTED TABLE OF  t_sbook WITH NON-UNIQUE KEY carrid connid,
+      wa_sbook TYPE t_sbook.
+DATA: it_collect TYPE STANDARD TABLE OF t_sbook,
+      it_collect2 TYPE STANDARD TABLE OF t_sbook,
+      wa_collect TYPE t_sbook.
 
 *ALV data declarations
 DATA: fieldcatalog TYPE slis_t_fieldcat_alv WITH HEADER LINE,
@@ -40,8 +44,7 @@ DATA: fieldcatalog TYPE slis_t_fieldcat_alv WITH HEADER LINE,
 DATA : t TYPE slis_t_sp_group_alv .
 
 SELECTION-SCREEN BEGIN OF BLOCK part1 WITH FRAME TITLE text-001.
-SELECT-OPTIONS s_carrid   FOR sflight-carrid.
-
+SELECT-OPTIONS s_carrid   FOR sbook-carrid.
 SELECTION-SCREEN END OF BLOCK part1.
 
 
@@ -76,24 +79,29 @@ FORM build_fieldcatalog.
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR  fieldcatalog.
 
-  fieldcatalog-fieldname   = 'PRICE'.
-  fieldcatalog-seltext_m   = '가격'.
+  fieldcatalog-fieldname   = 'LUGGWEIGHT'.
+  fieldcatalog-seltext_m   = '수화물 무게'.
   fieldcatalog-col_pos     = 2.
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR  fieldcatalog.
 
-  fieldcatalog-fieldname   = 'CURRENCY'.
-  fieldcatalog-seltext_m   = '자국 화폐'.
+  fieldcatalog-fieldname   = 'WUNIT'.
+  fieldcatalog-seltext_m   = '무게단위'.
   fieldcatalog-col_pos     = 3.
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR  fieldcatalog.
 
-  fieldcatalog-fieldname   = 'SEATSMAX'.
-  fieldcatalog-seltext_m   = '정원 수'.
+  fieldcatalog-fieldname   = 'LOCCURAM'.
+  fieldcatalog-seltext_m   = '금액'.
   fieldcatalog-col_pos     = 4.
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR  fieldcatalog.
 
+  fieldcatalog-fieldname   = 'LOCCURKEY'.
+  fieldcatalog-seltext_m   = '통화단위'.
+  fieldcatalog-col_pos     = 5.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR  fieldcatalog.
 
 
 ENDFORM.                    " BUILD_FIELDCATALOG
@@ -149,30 +157,12 @@ ENDFORM.                    " DISPLAY_ALV_REPORT
 *----------------------------------------------------------------------*
 FORM data_retrieval.
 
+SELECT carrid connid luggweight wunit loccuram loccurkey
+  FROM sbook
+  INTO TABLE it_sbook
+  WHERE carrid IN s_carrid.
 
-*SELECT * from sflight
-*  INTO TABLE @DATA(sflight_tab).
-SELECT carrid, connid, price, currency, seatsmax
-   from sflight where carrid IN @s_carrid
-  INTO TABLE @it_sflight.
-
-LOOP AT it_sflight INTO wa_sflight.
-  AT END OF carrid.   "AT END OF 뒤에 있는 필드는 마스킹 처리되는것.
-    SUM.
-    APPEND wa_sflight TO it_collect2.
-    ENDAT.
-  ENDLOOP.
-
-LOOP AT it_sflight INTO wa_sflight.
-   AT END OF connid.
-      SUM.
-    APPEND wa_sflight TO it_collect.
-   ENDAT.
+LOOP AT it_sbook INTO wa_sbook.
+  COLLECT wa_sbook INTO it_collect.
 ENDLOOP.
-
-
-
-
-
-
 ENDFORM.                    " DATA_RETRIEVAL

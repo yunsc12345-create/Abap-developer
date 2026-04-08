@@ -1,34 +1,42 @@
 *&---------------------------------------------------------------------*
-*& Report ZW12_HOMEWORK
+*& Report ZW13_1PRACTICE
 *&---------------------------------------------------------------------*
 *&
 *&---------------------------------------------------------------------*
-REPORT ZW12_HOMEWORK.
+REPORT ZW13_1PRACTICE.
+
+" 13주차 내용을 조인문을 통해서 만들어보려고 했으나 포기
 
 
 
 
 
 
-TABLES:     sflight.
+TABLES:     sbook, scarr, spfli.
 
 TYPE-POOLS: slis.                                 "ALV Declarations
 
 *Data Declaration
 *----------------
-TYPES: BEGIN OF t_sflight,
-  carrid     TYPE sflight-carrid,
-  connid     TYPE sflight-connid,
-  price      TYPE sflight-price,
-  currency   TYPE sflight-currency,
-  seatsmax  TYPE sflight-seatsmax,
- END OF t_sflight.
+TYPES: BEGIN OF t_sbook,
+  carrid     TYPE sbook-carrid,
+  connid     TYPE sbook-connid,
+*  luggweight TYPE sbook-luggweight,
+  luggweight(6) TYPE P DECIMALS 4, "여기서 6은 바이트로 length가 11자리까지 늘어난것.
+  wunit      TYPE sbook-wunit,
+  loccuram   TYPE sbook-loccuram,
+  loccurkey  TYPE sbook-loccurkey,
+  carrname   TYPE scarr-carrname,
+  cityfrom   TYPE spfli-cityfrom,
+  cityto     TYPE spfli-cityto,
+ END OF t_sbook.
 
-DATA: it_sflight TYPE SORTED TABLE OF  t_sflight WITH NON-UNIQUE KEY carrid connid,
-      wa_sflight TYPE t_sflight.
-
-DATA: it_collect type STANDARD TABLE OF t_sflight,
-      it_collect2 type STANDARD TABLE OF t_sflight.
+*DATA: it_sbook TYPE STANDARD TABLE OF t_sbook,
+DATA: it_sbook TYPE SORTED TABLE OF  t_sbook WITH NON-UNIQUE KEY carrid connid carrname cityfrom cityto,
+      wa_sbook TYPE t_sbook.
+DATA: it_collect TYPE STANDARD TABLE OF t_sbook,
+      it_collect2 TYPE STANDARD TABLE OF t_sbook,
+      wa_collect TYPE t_sbook.
 
 *ALV data declarations
 DATA: fieldcatalog TYPE slis_t_fieldcat_alv WITH HEADER LINE,
@@ -40,8 +48,7 @@ DATA: fieldcatalog TYPE slis_t_fieldcat_alv WITH HEADER LINE,
 DATA : t TYPE slis_t_sp_group_alv .
 
 SELECTION-SCREEN BEGIN OF BLOCK part1 WITH FRAME TITLE text-001.
-SELECT-OPTIONS s_carrid   FOR sflight-carrid.
-
+SELECT-OPTIONS s_carrid   FOR sbook-carrid.
 SELECTION-SCREEN END OF BLOCK part1.
 
 
@@ -76,24 +83,47 @@ FORM build_fieldcatalog.
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR  fieldcatalog.
 
-  fieldcatalog-fieldname   = 'PRICE'.
-  fieldcatalog-seltext_m   = '가격'.
+  fieldcatalog-fieldname   = 'LUGGWEIGHT'.
+  fieldcatalog-seltext_m   = '수화물 무게'.
   fieldcatalog-col_pos     = 2.
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR  fieldcatalog.
 
-  fieldcatalog-fieldname   = 'CURRENCY'.
-  fieldcatalog-seltext_m   = '자국 화폐'.
+  fieldcatalog-fieldname   = 'WUNIT'.
+  fieldcatalog-seltext_m   = '무게단위'.
   fieldcatalog-col_pos     = 3.
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR  fieldcatalog.
 
-  fieldcatalog-fieldname   = 'SEATSMAX'.
-  fieldcatalog-seltext_m   = '정원 수'.
+  fieldcatalog-fieldname   = 'LOCCURAM'.
+  fieldcatalog-seltext_m   = '금액'.
   fieldcatalog-col_pos     = 4.
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR  fieldcatalog.
 
+  fieldcatalog-fieldname   = 'LOCCURKEY'.
+  fieldcatalog-seltext_m   = '통화단위'.
+  fieldcatalog-col_pos     = 5.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR  fieldcatalog.
+
+  fieldcatalog-fieldname   = 'CARRNAME'.
+  fieldcatalog-seltext_m   = '항공사명'.
+  fieldcatalog-col_pos     = 6.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR  fieldcatalog.
+
+  fieldcatalog-fieldname   = 'CITYFROM'.
+  fieldcatalog-seltext_m   = '출발 도시'.
+  fieldcatalog-col_pos     = 7.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR  fieldcatalog.
+
+  fieldcatalog-fieldname   = 'CITYTO'.
+  fieldcatalog-seltext_m   = '도착 도시'.
+  fieldcatalog-col_pos     = 8.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR  fieldcatalog.
 
 
 ENDFORM.                    " BUILD_FIELDCATALOG
@@ -149,30 +179,32 @@ ENDFORM.                    " DISPLAY_ALV_REPORT
 *----------------------------------------------------------------------*
 FORM data_retrieval.
 
+SELECT A~carrid, A~connid, A~luggweight, A~wunit, A~loccuram, A~loccurkey, B~carrname, C~cityto, C~cityfrom
+  FROM ( ( sbook AS A LEFT OUTER JOIN scarr AS B
+  ON A~carrid = B~carrid ) LEFT OUTER JOIN spfli AS C
+  ON A~carrid = C~carrid AND A~connid = C~connid )
+  INTO TABLE @it_sbook
+  WHERE A~carrid IN @s_carrid.
 
-*SELECT * from sflight
-*  INTO TABLE @DATA(sflight_tab).
-SELECT carrid, connid, price, currency, seatsmax
-   from sflight where carrid IN @s_carrid
-  INTO TABLE @it_sflight.
+*  SELECT  A~carrname, A~carrid, B~connid, B~cityfrom, B~cityto, F~fldate
+*  FROM ( scarr AS A
+*  INNER JOIN spfli AS B
+*  ON A~carrid = B~carrid )
+*  INNER JOIN sflight AS F
+*  ON B~carrid = F~carrid
+*  AND B~connid = F~connid
+*
 
-LOOP AT it_sflight INTO wa_sflight.
+
+
+LOOP AT it_sbook INTO wa_sbook.
   AT END OF carrid.   "AT END OF 뒤에 있는 필드는 마스킹 처리되는것.
     SUM.
-    APPEND wa_sflight TO it_collect2.
+    APPEND wa_sbook TO it_collect2.
     ENDAT.
-  ENDLOOP.
-
-LOOP AT it_sflight INTO wa_sflight.
-   AT END OF connid.
+    AT END OF connid.
       SUM.
-    APPEND wa_sflight TO it_collect.
+    APPEND wa_sbook TO it_collect.
    ENDAT.
-ENDLOOP.
-
-
-
-
-
-
+  ENDLOOP.
 ENDFORM.                    " DATA_RETRIEVAL
