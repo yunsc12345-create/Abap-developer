@@ -1,13 +1,9 @@
 *&---------------------------------------------------------------------*
-*& Report ZW13
+*& Report ZW13_AGAIN
 *&---------------------------------------------------------------------*
 *&
 *&---------------------------------------------------------------------*
-REPORT ZW13.
-
-
-
-
+REPORT ZW13_AGAIN.
 
 
 
@@ -17,37 +13,29 @@ TYPE-POOLS: slis.                                 "ALV Declarations
 
 *Data Declaration
 *----------------
-
-
-"sbook만 담을 테이블과 행
 TYPES: BEGIN OF t_sbook,
   carrid     TYPE sbook-carrid,
   connid     TYPE sbook-connid,
 *  luggweight TYPE sbook-luggweight,
-  luggweight(6) TYPE P DECIMALS 4, "여기서 6은 바이트로 length가 11자리까지 늘어난것.
+  luggweight TYPE P DECIMALS 4,
   wunit      TYPE sbook-wunit,
   loccuram   TYPE sbook-loccuram,
   loccurkey  TYPE sbook-loccurkey,
  END OF t_sbook.
 
-*DATA: it_sbook TYPE STANDARD TABLE OF t_sbook,
-DATA: it_sbook TYPE SORTED TABLE OF  t_sbook WITH NON-UNIQUE KEY carrid connid,
+
+*DATA: it_sbook TYPE SORTED TABLE OF t_sbook WITH NON-UNIQUE KEY carrid connid,
+DATA: it_sbook TYPE STANDARD TABLE OF t_sbook,
       wa_sbook TYPE t_sbook.
-
-DATA: it_collect TYPE STANDARD TABLE OF t_sbook,
+DATA: it_collect  TYPE STANDARD TABLE OF t_sbook,
       it_collect2 TYPE STANDARD TABLE OF t_sbook,
-      wa_collect TYPE t_sbook.
+      wa_collect  TYPE t_sbook.
 
-*collect를 왜 sbook 기준으로 담았을까?
-
-
-
-
-"전체 다 담을 인터널테이블과 행
 TYPES: BEGIN OF t_move,
   carrid     TYPE sbook-carrid,
   connid     TYPE sbook-connid,
-  luggweight(6) TYPE P DECIMALS 4,
+*  luggweight TYPE sbook-luggweight,
+  luggweight TYPE P DECIMALS 4,
   wunit      TYPE sbook-wunit,
   loccuram   TYPE sbook-loccuram,
   loccurkey  TYPE sbook-loccurkey,
@@ -56,40 +44,37 @@ TYPES: BEGIN OF t_move,
   cityto     TYPE spfli-cityto,
  END OF t_move.
 
-DATA: it_move TYPE STANDARD TABLE OF  t_move,
-      wa_move TYPE t_move.
-
-*DATA: it_collect TYPE STANDARD TABLE OF t_move,
-*      it_collect2 TYPE STANDARD TABLE OF t_move,
-*      wa_collect TYPE t_move.
+ DATA: it_move TYPE STANDARD TABLE OF t_move,
+       wa_move TYPE t_move.
 
 
 
 
-"scarr만 담을 테이블과 행
-TYPES : BEGIN OF t_scarr,
+TYPES: BEGIN OF t_scarr,
   carrid   TYPE scarr-carrid,
   carrname TYPE scarr-carrname,
-  END OF t_scarr.
+ END OF t_scarr.
 
-DATA: it_scarr TYPE STANDARD TABLE OF  t_scarr,
-      wa_scarr TYPE t_scarr.
-
-*scarr의 필드는 두개인데 t_move에는 scarr필드를 한개만 썼음. 혹시 조인?
-*아마 carrid는 파라미터인 s_carrid를 where절에 걸기 위함 인듯.
+ DATA: it_scarr TYPE STANDARD TABLE OF t_scarr,
+       wa_scarr TYPE t_scarr.
 
 
-" spfli만 담을 테이블과 행
-TYPES: BEGIN OF t_spfli,
-  carrid     TYPE spfli-carrid,
-  connid     TYPE spfli-connid,
-  cityfrom   TYPE spfli-cityfrom,
-  cityto     TYPE spfli-cityto,
- END OF t_spfli.
 
-DATA: it_spfli TYPE STANDARD TABLE OF  t_spfli,
-      wa_spfli TYPE t_spfli.
-*여기도 마찬가지로 조인을 노린것인가?
+
+ TYPES: BEGIN OF t_spfli,
+   carrid    TYPE spfli-carrid,
+   connid    TYPE spfli-connid,
+   cityfrom  TYPE spfli-cityfrom,
+   cityto    TYPE spfli-cityto,
+   END OF t_spfli.
+
+   DATA: it_spfli    TYPE STANDARD TABLE OF t_spfli,
+         wa_spfli  TYPE t_spfli.
+
+
+
+
+
 
 
 *ALV data declarations
@@ -132,52 +117,54 @@ FORM build_fieldcatalog.
 
   fieldcatalog-fieldname   = 'CONNID'.
   fieldcatalog-seltext_m   = '비행 번호'.
-  fieldcatalog-col_pos     = 1.
+  fieldcatalog-col_pos     = 2.
   fieldcatalog-lzero       = 'X'.
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR  fieldcatalog.
 
   fieldcatalog-fieldname   = 'LUGGWEIGHT'.
   fieldcatalog-seltext_m   = '수화물 무게'.
-  fieldcatalog-col_pos     = 2.
+  fieldcatalog-col_pos     = 5.
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR  fieldcatalog.
 
   fieldcatalog-fieldname   = 'WUNIT'.
   fieldcatalog-seltext_m   = '무게단위'.
-  fieldcatalog-col_pos     = 3.
+  fieldcatalog-col_pos     = 6.
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR  fieldcatalog.
 
   fieldcatalog-fieldname   = 'LOCCURAM'.
   fieldcatalog-seltext_m   = '금액'.
-  fieldcatalog-col_pos     = 4.
+  fieldcatalog-col_pos     = 7.
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR  fieldcatalog.
 
   fieldcatalog-fieldname   = 'LOCCURKEY'.
   fieldcatalog-seltext_m   = '통화단위'.
-  fieldcatalog-col_pos     = 5.
+  fieldcatalog-col_pos     = 8.
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR  fieldcatalog.
 
+
   fieldcatalog-fieldname   = 'CARRNAME'.
-  fieldcatalog-seltext_m   = '항공사명'.
-  fieldcatalog-col_pos     = 6.
+  fieldcatalog-seltext_m   = '항공사이름'.
+  fieldcatalog-col_pos     = 1.
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR  fieldcatalog.
 
   fieldcatalog-fieldname   = 'CITYFROM'.
-  fieldcatalog-seltext_m   = '출발 도시'.
-  fieldcatalog-col_pos     = 7.
+  fieldcatalog-seltext_m   = '출발 지역'.
+  fieldcatalog-col_pos     = 3.
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR  fieldcatalog.
 
   fieldcatalog-fieldname   = 'CITYTO'.
-  fieldcatalog-seltext_m   = '도착 도시'.
-  fieldcatalog-col_pos     = 8.
+  fieldcatalog-seltext_m   = '도착 지역'.
+  fieldcatalog-col_pos     = 4.
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR  fieldcatalog.
+
 
 ENDFORM.                    " BUILD_FIELDCATALOG
 
@@ -236,53 +223,84 @@ SELECT carrid connid luggweight wunit loccuram loccurkey
   FROM sbook
   INTO TABLE it_sbook
   WHERE carrid IN s_carrid.
+*  ORDER BY carrid connid.
 
-
+*SORT it_sbook BY carrid connid.
+*SORT it_sbook BY carrid ASCENDING connid DESCENDING.
 
 LOOP AT it_sbook INTO wa_sbook.
-  COLLECT wa_sbook INTO it_collect.  "move같은 애들로 테이블 데이터 전체 이동은 안되기 떄문에 LOOP를 써야함.
-ENDLOOP.
+  COLLECT wa_sbook INTO it_collect.
+ENDLOOP.        "여기서 콜렉트 되서 압축됨.
 
-*SELECT b_carrid, b_connid, luggweight, wunit, loccuram, loccurkey, carrname, cityfrom, cityto
-*  FROM sbook AS b, scarr, spfli
-*  INTO TABLE it_sbook
-*  WHERE carrid IN s_carrid.
 
 SELECT carrid carrname
   FROM scarr
   INTO TABLE it_scarr
   WHERE carrid IN s_carrid.
 
+
+
 SELECT carrid connid cityfrom cityto
   FROM spfli
-  INTO TABLE it_spfli
+  INto TABLE it_spfli
   WHERE carrid IN s_carrid.
 
-   "MOVE는 통쨰로 옮기는 것, 필드와 행을 옮기는건 가능해도 테이블은 불가능
-   "MOVE-CO..는 같은 필드 데이터만 이동.
-
 LOOP AT it_collect INTO wa_collect.
- CLEAR : wa_sbook, wa_move, wa_spfli.
+
+  CLEAR : wa_move, wa_spfli, wa_sbook.
   MOVE-CORRESPONDING wa_collect TO wa_move.
+
+
+
   READ TABLE it_scarr INTO wa_scarr
-  WITH KEY carrid = wa_move-carrid.
-  IF sy-subrc = 0.
-    wa_move-carrname = wa_scarr-carrname.  "MOVE wa_scarr-carrname TO wa_move-carrname. 와 같음.
-      "구조가 완전히 같다면 A = B 로 써도 옮길 수 있음.!!!!!
-    READ TABLE it_spfli INTO wa_spfli
-      WITH KEY carrid = wa_move-carrid
-               connid = wa_move-connid.
-      ENDIF.
-  IF sy-subrc = 0.
+  with key carrid = wa_move-carrid.
+  if sy-subrc = 0.
+    wa_move-carrname = wa_scarr-carrname.
+    "move wa_scarr-carrname to wa_move-carrname.   위에꺼랑 똑같음.
+    ENDIF.
+
+
+
+  READ TABLE it_spfli INTO wa_spfli
+  with key carrid = wa_move-carrid
+           connid = wa_move-connid.
+    if sy-subrc = 0.
       wa_move-cityfrom = wa_spfli-cityfrom.
       wa_move-cityto = wa_spfli-cityto.
-ENDIF.
-APPEND wa_move TO it_move.
+      ENDIF.
+
+APPEND wa_move to it_move.
 
 ENDLOOP.
 
-*집계가 필요한 부분은 sbook안의 필드이기 떄문에 collect를 sbook 구조체로 만든것 거기에 carrid가 같은 scarr, spfli의 필드를 붙여준 것.
-*READ TABLE과 MOVE는 에러가 날 수 있음 값을 잘 보고 써야할듯
-*이렇게 한 작업을 끝내고 다시 쓸떄는 wa_move같은 애들을 CLEAR해줘야함
 
-ENDFORM.                      " DATA_RETRIEVAL
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+*  AT END OF carrid.
+*    SUM.
+*    APPEND wa_sbook TO it_collect2.
+*  ENDAT.
+*  AT END OF connid.
+*    SUM.
+*    APPEND wa_sbook TO it_collect.
+*  ENDAT.
+*ENDLOOP.
+
+
+
+
+ENDFORM.                    " DATA_RETRIEVAL

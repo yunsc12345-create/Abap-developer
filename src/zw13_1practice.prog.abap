@@ -10,201 +10,312 @@ REPORT ZW13_1PRACTICE.
 
 
 
+TABLES: sbook, scarr, scustom.
 
+TYPE-POOLS: vrm, slis.
 
-TABLES:     sbook, scarr, spfli.
-
-TYPE-POOLS: slis.                                 "ALV Declarations
-
-*Data Declaration
-*----------------
 TYPES: BEGIN OF t_sbook,
-  carrid     TYPE sbook-carrid,
-  connid     TYPE sbook-connid,
-*  luggweight TYPE sbook-luggweight,
-  luggweight(6) TYPE P DECIMALS 4, "여기서 6은 바이트로 length가 11자리까지 늘어난것.
-  wunit      TYPE sbook-wunit,
-  loccuram   TYPE sbook-loccuram,
-  loccurkey  TYPE sbook-loccurkey,
-  carrname   TYPE scarr-carrname,
-  cityfrom   TYPE spfli-cityfrom,
-  cityto     TYPE spfli-cityto,
- END OF t_sbook.
+         carrid     TYPE sbook-carrid,
+         carrname   TYPE scarr-carrname,
+         connid     TYPE sbook-connid,
+         fldate     TYPE sbook-fldate,
+         bookid     TYPE sbook-bookid,
+         customid   TYPE sbook-customid,
+         custname   TYPE scustom-name,
+         custtel    TYPE scustom-telephone,
+         custtype   TYPE scustom-custtype,
+         loccuram   TYPE sbook-loccuram,
+         loccurkey  TYPE sbook-loccurkey,
+         order_date TYPE sbook-order_date,
+         cancelled  TYPE sbook-cancelled,
+       END OF t_sbook.
 
-*DATA: it_sbook TYPE STANDARD TABLE OF t_sbook,
-DATA: it_sbook TYPE SORTED TABLE OF  t_sbook WITH NON-UNIQUE KEY carrid connid carrname cityfrom cityto,
-      wa_sbook TYPE t_sbook.
-DATA: it_collect TYPE STANDARD TABLE OF t_sbook,
-      it_collect2 TYPE STANDARD TABLE OF t_sbook,
-      wa_collect TYPE t_sbook.
+TYPES: BEGIN OF t_move,
+         carrid     TYPE sbook-carrid,
+         carrname   TYPE scarr-carrname,
+         connid     TYPE sbook-connid,
+         fldate     TYPE sbook-fldate,
+         bookid     TYPE sbook-bookid,
+         customid   TYPE sbook-customid,
+         custname   TYPE scustom-name,
+         custtel    TYPE scustom-telephone,
+         custtype   TYPE scustom-custtype,
+         loccuram   TYPE sbook-loccuram,
+         loccurkey  TYPE sbook-loccurkey,
+         order_date TYPE sbook-order_date,
+         cancelled  TYPE sbook-cancelled,
+         rowcol(4)  TYPE C,                         " 행 색상을 위한 필드
+         cellcol    TYPE SLIS_T_SPECIALCOL_ALV,     " 셀 색상을 위한 내부 테이블
+         days       TYPE I,                         " 출발일까지 남은 일수 fldate - order_data
+       END OF t_move.
 
-*ALV data declarations
-DATA: fieldcatalog TYPE slis_t_fieldcat_alv WITH HEADER LINE,
-      gd_tab_group TYPE slis_t_sp_group_alv,
-      gd_layout    TYPE slis_layout_alv,
-      gd_repid     LIKE sy-repid.
+DATA: wa_sbook       TYPE t_sbook,
+      it_sbook       TYPE STANDARD TABLE OF t_sbook,
+      wa_move        TYPE t_move,
+      it_move        TYPE STANDARD TABLE OF t_move,
+      LT_DROPLIST    TYPE VRM_VALUES,
 
+      fieldcatalog   TYPE slis_fieldcat_alv,
+      fieldcatalogs  TYPE slis_t_fieldcat_alv,
+      grid_tab_group TYPE slis_t_sp_group_alv,
+      grid_layout    TYPE slis_layout_alv,
+      grid_repid     LIKE sy-repid.
 
-DATA : t TYPE slis_t_sp_group_alv .
-
-SELECTION-SCREEN BEGIN OF BLOCK part1 WITH FRAME TITLE text-001.
-SELECT-OPTIONS s_carrid   FOR sbook-carrid.
-SELECTION-SCREEN END OF BLOCK part1.
-
+DATA: gv_custid TYPE sbook-customid.
+DATA: t TYPE slis_t_sp_group_alv.
+DATA: t_colinfo_table TYPE SLIS_T_SPECIALCOL_ALV WITH HEADER LINE.
 
 ************************************************************************
-*Start-of-selection.
-START-OF-SELECTION.
+* 1. 선택 화면
+*   - 검색 조건: 항공사(s_carrid), 노선(s_connid), 출발일(s_fldate)
+*   - 고객 선택: s_custid (SELECT-OPTIONS)
+*   - 라디오 버튼: r1 = 전체, r2 = 유효(취소되지 않음), r3 = 취소됨
+************************************************************************
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
+    PARAMETERS: s_carrid TYPE sbook-carrid
+                        AS LISTBOX VISIBLE LENGTH 20
+                        OBLIGATORY DEFAULT 'AA'.
+    PARAMETERS: s_connid TYPE sbook-connid
+                        AS LISTBOX VISIBLE LENGTH 40
+                        OBLIGATORY DEFAULT '0017'.
+    PARAMETERS: s_fldate TYPE sbook-fldate OBLIGATORY DEFAULT '20171219'.
+SELECTION-SCREEN END OF BLOCK b1.
 
-  PERFORM data_retrieval.
-  PERFORM build_fieldcatalog.
-  PERFORM build_layout.
-  PERFORM display_alv_report.
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE TEXT-002.
+    SELECT-OPTIONS s_custid FOR gv_custid.
+    PARAMETERS: r1 RADIOBUTTON GROUP rb1 DEFAULT 'X' USER-COMMAND rad.
+    PARAMETERS: r2 RADIOBUTTON GROUP rb1.
+    PARAMETERS: r3 RADIOBUTTON GROUP rb1.
+SELECTION-SCREEN END OF BLOCK b2.
 
+************************************************************************
+* 리스트박스 값 도움(value-help)
+************************************************************************
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR s_carrid.
+  REFRESH LT_DROPLIST.
 
-*&---------------------------------------------------------------------*
-*&      Form  BUILD_FIELDCATALOG
-*&---------------------------------------------------------------------*
-*       Build Fieldcatalog for ALV Report
-*----------------------------------------------------------------------*
-FORM build_fieldcatalog.
+  SELECT
+    sbook~carrid AS KEY,
+    sbook~carrid && '(' && scarr~carrname  && ')' AS TEXT
+    FROM sbook
+    JOIN scarr ON sbook~carrid = scarr~carrid
+    INTO TABLE @LT_DROPLIST.
 
-  fieldcatalog-fieldname   = 'CARRID'.
-  fieldcatalog-seltext_m   = '항공사코드'.
-  fieldcatalog-col_pos     = 0.
-  fieldcatalog-outputlen   = 10.
-  APPEND fieldcatalog TO fieldcatalog.
-  CLEAR  fieldcatalog.
+  " KEY, TEXT 순으로 정렬하고 중복 제거
+  SORT LT_DROPLIST BY KEY TEXT.
+  DELETE ADJACENT DUPLICATES FROM LT_DROPLIST.
 
-  fieldcatalog-fieldname   = 'CONNID'.
-  fieldcatalog-seltext_m   = '비행 번호'.
-  fieldcatalog-col_pos     = 1.
-  fieldcatalog-lzero       = 'X'.
-  APPEND fieldcatalog TO fieldcatalog.
-  CLEAR  fieldcatalog.
+  CALL FUNCTION 'VRM_SET_VALUES'
+    EXPORTING
+      id     = 's_carrid'
+      values = LT_DROPLIST.
 
-  fieldcatalog-fieldname   = 'LUGGWEIGHT'.
-  fieldcatalog-seltext_m   = '수화물 무게'.
-  fieldcatalog-col_pos     = 2.
-  APPEND fieldcatalog TO fieldcatalog.
-  CLEAR  fieldcatalog.
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR s_connid.
+  REFRESH LT_DROPLIST.
 
-  fieldcatalog-fieldname   = 'WUNIT'.
-  fieldcatalog-seltext_m   = '무게단위'.
-  fieldcatalog-col_pos     = 3.
-  APPEND fieldcatalog TO fieldcatalog.
-  CLEAR  fieldcatalog.
+  SELECT
+    sbook~connid AS KEY,
+    spfli~CITYFROM && '=>' && spfli~CITYTO AS TEXT
+    FROM sbook
+    JOIN spfli ON sbook~connid = spfli~connid
+    INTO TABLE @LT_DROPLIST.
 
-  fieldcatalog-fieldname   = 'LOCCURAM'.
-  fieldcatalog-seltext_m   = '금액'.
-  fieldcatalog-col_pos     = 4.
-  APPEND fieldcatalog TO fieldcatalog.
-  CLEAR  fieldcatalog.
+  SORT LT_DROPLIST BY KEY TEXT.
+  DELETE ADJACENT DUPLICATES FROM LT_DROPLIST.
 
-  fieldcatalog-fieldname   = 'LOCCURKEY'.
-  fieldcatalog-seltext_m   = '통화단위'.
-  fieldcatalog-col_pos     = 5.
-  APPEND fieldcatalog TO fieldcatalog.
-  CLEAR  fieldcatalog.
+  CALL FUNCTION 'VRM_SET_VALUES'
+    EXPORTING
+      id     = 's_connid'
+      values = LT_DROPLIST.
 
-  fieldcatalog-fieldname   = 'CARRNAME'.
-  fieldcatalog-seltext_m   = '항공사명'.
-  fieldcatalog-col_pos     = 6.
-  APPEND fieldcatalog TO fieldcatalog.
-  CLEAR  fieldcatalog.
+************************************************************************
+* 2. 데이터 조회
+*    - 선택 조건에 따라 SBOOK에서 조회
+*    - 라디오 버튼에 따라 CANCELLED 플래그로 필터링
+************************************************************************
+FORM data_retrieval.
+  DATA: lv_cancelled TYPE sbook-cancelled.
 
-  fieldcatalog-fieldname   = 'CITYFROM'.
-  fieldcatalog-seltext_m   = '출발 도시'.
-  fieldcatalog-col_pos     = 7.
-  APPEND fieldcatalog TO fieldcatalog.
-  CLEAR  fieldcatalog.
+  SELECT b~carrid,
+         c~carrname, " 항공사 이름 추가
+         b~connid,
+         b~fldate,
+         b~bookid,
+         b~customid,
+         cu~name,
+         cu~telephone,
+         cu~custtype,
+         b~loccuram,
+         b~loccurkey,
+         b~order_date,
+         b~cancelled
+    FROM sbook AS b
+    JOIN scarr AS c
+        ON b~carrid = c~carrid
+    JOIN scustom AS cu
+        ON b~customid = cu~id
+    WHERE b~carrid = @s_carrid
+      AND b~connid = @s_connid
+      AND b~fldate = @s_fldate
+      AND b~customid IN @s_custid
+    INTO TABLE @it_sbook.
 
-  fieldcatalog-fieldname   = 'CITYTO'.
-  fieldcatalog-seltext_m   = '도착 도시'.
-  fieldcatalog-col_pos     = 8.
-  APPEND fieldcatalog TO fieldcatalog.
-  CLEAR  fieldcatalog.
+  lv_cancelled = 'X'.
 
+  IF r2 = 'X'.
+    " 취소되지 않은 예약만 유지
+    DELETE it_sbook WHERE cancelled = lv_cancelled.
+  ELSEIF r3 = 'X'.
+    " 취소된 예약만 유지
+    DELETE it_sbook WHERE cancelled <> lv_cancelled.
+  ENDIF.
 
-ENDFORM.                    " BUILD_FIELDCATALOG
+  LOOP AT it_sbook INTO wa_sbook.
+     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+     " 1. 출발일까지 남은 일수 계산
+     " 2. 출발일까지 남은 일수가 100일 이상인 예약은 초록색으로 표시
+     " 3. 취소된 예약은 빨간색으로 표시
+     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+     CLEAR : wa_move.
+     MOVE-CORRESPONDING wa_sbook TO wa_move.
+     " 1. 출발일까지 남은 일수 계산
+     wa_move-days = wa_move-fldate - wa_move-order_date.
 
+     " 2. 출발일까지 남은 일수가 100일 이상인 예약은 초록색으로 표시
+     IF wa_move-days >= 100.
+        refresh t_colinfo_table.
+        clear t_colinfo_table.
+        t_colinfo_table-fieldname = 'DAYS'.
+        t_colinfo_table-color-col = 5.
+        t_colinfo_table-color-int = 1.
+        t_colinfo_table-color-inv = 0.
+        APPEND t_colinfo_table.
+        wa_move-cellcol[] = t_colinfo_table[].
+     ENDIF.
 
-*&---------------------------------------------------------------------*
-*&      Form  BUILD_LAYOUT
-*&---------------------------------------------------------------------*
-*       Build layout for ALV grid report
-*----------------------------------------------------------------------*
-FORM build_layout.
+     " 3. 취소된 예약은 빨간색으로 표시
+     IF wa_sbook-cancelled = 'X'.
+        wa_move-rowcol = 'C610'. " 취소된 예약은 빨간색으로 표시
+     ENDIF.
 
-  gd_layout-no_input          = 'X'.
-  gd_layout-colwidth_optimize = 'X'.
-  gd_layout-zebra = 'X'.
-*  gd_layout-info_fieldname =      'LINE_COLOR'.
-*  gd_layout-def_status = 'A'.
+     " 4. internal table 에 work area 의 데이터를 추가
+     APPEND wa_move TO it_move.
+   ENDLOOP.
+ENDFORM.
 
-ENDFORM.                    " BUILD_LAYOUT
+************************************************************************
+* 3. ALV 필드 카탈로그 및 레이아웃
+************************************************************************
+FORM create_fieldcatalog.
+  CLEAR fieldcatalog.
+  fieldcatalog-fieldname = 'CARRID'.
+  fieldcatalog-seltext_m = 'Airline Code'.
+  fieldcatalog-key = 'X'.
+  APPEND fieldcatalog TO fieldcatalogs.
 
+  fieldcatalog-fieldname = 'CARRNAME'.
+  fieldcatalog-seltext_m = 'Airline Name'.
+  fieldcatalog-key = 'X'.
+  APPEND fieldcatalog TO fieldcatalogs.
 
-*&---------------------------------------------------------------------*
-*&      Form  DISPLAY_ALV_REPORT
-*&---------------------------------------------------------------------*
-*       Display report using ALV grid
-*----------------------------------------------------------------------*
+  CLEAR fieldcatalog.
+  fieldcatalog-fieldname = 'CONNID'.
+  fieldcatalog-seltext_m = 'No'.
+  fieldcatalog-key = 'X'.
+  APPEND fieldcatalog TO fieldcatalogs.
+
+  CLEAR fieldcatalog.
+  fieldcatalog-fieldname = 'FLDATE'.
+  fieldcatalog-seltext_m = 'Flight Date'.
+  fieldcatalog-key = 'X'.
+  APPEND fieldcatalog TO fieldcatalogs.
+
+  CLEAR fieldcatalog.
+  fieldcatalog-fieldname = 'BOOKID'.
+  fieldcatalog-seltext_m = 'Booking'.
+  fieldcatalog-key = 'X'.
+  APPEND fieldcatalog TO fieldcatalogs.
+
+  CLEAR fieldcatalog.
+  fieldcatalog-fieldname = 'CUSTOMID'.
+  fieldcatalog-seltext_m = 'Cust No.'.
+  fieldcatalog-lzero   = 'X'.
+  fieldcatalog-hotspot = 'X'.
+  APPEND fieldcatalog TO fieldcatalogs.
+
+  CLEAR fieldcatalog.
+  fieldcatalog-fieldname = 'CUSTNAME'.
+  fieldcatalog-seltext_m = 'Customer Name'.
+  APPEND fieldcatalog TO fieldcatalogs.
+
+  CLEAR fieldcatalog.
+  fieldcatalog-fieldname = 'CUSTTEL'.
+  fieldcatalog-seltext_m = 'Telephone no.'.
+  APPEND fieldcatalog TO fieldcatalogs.
+
+  CLEAR fieldcatalog.
+  fieldcatalog-fieldname = 'CUSTTYPE'.
+  fieldcatalog-seltext_m = 'B/P cust.'.
+  APPEND fieldcatalog TO fieldcatalogs.
+
+  CLEAR fieldcatalog.
+  fieldcatalog-fieldname = 'LOCCURAM'.
+  fieldcatalog-seltext_m = 'Amount'.
+  APPEND fieldcatalog TO fieldcatalogs.
+
+  CLEAR fieldcatalog.
+  fieldcatalog-fieldname = 'LOCCURKEY'.
+  fieldcatalog-seltext_m = 'Curr.'.
+  APPEND fieldcatalog TO fieldcatalogs.
+
+  CLEAR fieldcatalog.
+  fieldcatalog-fieldname = 'ORDER_DATE'.
+  fieldcatalog-seltext_m = 'Booking Date'.
+  APPEND fieldcatalog TO fieldcatalogs.
+
+  CLEAR fieldcatalog.
+  fieldcatalog-fieldname = 'CANCELLED'.
+  fieldcatalog-seltext_m = 'Cancelled'.
+  APPEND fieldcatalog TO fieldcatalogs.
+
+  CLEAR fieldcatalog.
+  fieldcatalog-fieldname = 'DAYS'.
+  fieldcatalog-seltext_m = 'Days to Flight'.
+  APPEND fieldcatalog TO fieldcatalogs.
+ENDFORM.
+
+FORM create_layout.
+  grid_layout-zebra             = 'X'.
+  grid_layout-colwidth_optimize = 'X'.
+  grid_layout-no_input          = 'X'.
+  grid_layout-info_fieldname    = 'rowcol'.
+  grid_layout-coltab_fieldname  = 'cellcol'.
+ENDFORM.
+
 FORM display_alv_report.
-  gd_repid = sy-repid.
+  grid_repid = sy-repid.
   CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
     EXPORTING
-      i_callback_program = gd_repid
-      is_layout          = gd_layout
-      it_fieldcat        = fieldcatalog[]
+      i_callback_program = grid_repid
+      is_layout          = grid_layout
+      it_fieldcat        = fieldcatalogs[]
       i_save             = 'X'
     TABLES
-      t_outtab           = it_collect
+      t_outtab           = it_move
     EXCEPTIONS
       program_error      = 1
       OTHERS             = 2.
   IF sy-subrc <> 0.
-* MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
-*         WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
   ENDIF.
+ENDFORM.
 
-
-ENDFORM.                    " DISPLAY_ALV_REPORT
-
-
-*&---------------------------------------------------------------------*
-*&      Form  DATA_RETRIEVAL
-*&---------------------------------------------------------------------*
-*       Retrieve data form EKPO table and populate itab it_ekko
-*----------------------------------------------------------------------*
-FORM data_retrieval.
-
-SELECT A~carrid, A~connid, A~luggweight, A~wunit, A~loccuram, A~loccurkey, B~carrname, C~cityto, C~cityfrom
-  FROM ( ( sbook AS A LEFT OUTER JOIN scarr AS B
-  ON A~carrid = B~carrid ) LEFT OUTER JOIN spfli AS C
-  ON A~carrid = C~carrid AND A~connid = C~connid )
-  INTO TABLE @it_sbook
-  WHERE A~carrid IN @s_carrid.
-
-*  SELECT  A~carrname, A~carrid, B~connid, B~cityfrom, B~cityto, F~fldate
-*  FROM ( scarr AS A
-*  INNER JOIN spfli AS B
-*  ON A~carrid = B~carrid )
-*  INNER JOIN sflight AS F
-*  ON B~carrid = F~carrid
-*  AND B~connid = F~connid
-*
-
-
-
-LOOP AT it_sbook INTO wa_sbook.
-  AT END OF carrid.   "AT END OF 뒤에 있는 필드는 마스킹 처리되는것.
-    SUM.
-    APPEND wa_sbook TO it_collect2.
-    ENDAT.
-    AT END OF connid.
-      SUM.
-    APPEND wa_sbook TO it_collect.
-   ENDAT.
-  ENDLOOP.
-ENDFORM.                    " DATA_RETRIEVAL
+************************************************************************
+* 4. 메인
+************************************************************************
+START-OF-SELECTION.
+  PERFORM data_retrieval.
+  PERFORM create_fieldcatalog.
+  PERFORM create_layout.
+  PERFORM display_alv_report.              " DATA_RETRIEVAL

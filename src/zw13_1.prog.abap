@@ -1,9 +1,10 @@
 *&---------------------------------------------------------------------*
-*& Report ZW13
+*& Report ZW13_1
 *&---------------------------------------------------------------------*
 *&
 *&---------------------------------------------------------------------*
-REPORT ZW13.
+REPORT ZW13_1.
+
 
 
 
@@ -65,31 +66,6 @@ DATA: it_move TYPE STANDARD TABLE OF  t_move,
 
 
 
-
-"scarr만 담을 테이블과 행
-TYPES : BEGIN OF t_scarr,
-  carrid   TYPE scarr-carrid,
-  carrname TYPE scarr-carrname,
-  END OF t_scarr.
-
-DATA: it_scarr TYPE STANDARD TABLE OF  t_scarr,
-      wa_scarr TYPE t_scarr.
-
-*scarr의 필드는 두개인데 t_move에는 scarr필드를 한개만 썼음. 혹시 조인?
-*아마 carrid는 파라미터인 s_carrid를 where절에 걸기 위함 인듯.
-
-
-" spfli만 담을 테이블과 행
-TYPES: BEGIN OF t_spfli,
-  carrid     TYPE spfli-carrid,
-  connid     TYPE spfli-connid,
-  cityfrom   TYPE spfli-cityfrom,
-  cityto     TYPE spfli-cityto,
- END OF t_spfli.
-
-DATA: it_spfli TYPE STANDARD TABLE OF  t_spfli,
-      wa_spfli TYPE t_spfli.
-*여기도 마찬가지로 조인을 노린것인가?
 
 
 *ALV data declarations
@@ -243,46 +219,39 @@ LOOP AT it_sbook INTO wa_sbook.
   COLLECT wa_sbook INTO it_collect.  "move같은 애들로 테이블 데이터 전체 이동은 안되기 떄문에 LOOP를 써야함.
 ENDLOOP.
 
-*SELECT b_carrid, b_connid, luggweight, wunit, loccuram, loccurkey, carrname, cityfrom, cityto
-*  FROM sbook AS b, scarr, spfli
-*  INTO TABLE it_sbook
-*  WHERE carrid IN s_carrid.
-
-SELECT carrid carrname
-  FROM scarr
-  INTO TABLE it_scarr
-  WHERE carrid IN s_carrid.
-
-SELECT carrid connid cityfrom cityto
-  FROM spfli
-  INTO TABLE it_spfli
-  WHERE carrid IN s_carrid.
 
    "MOVE는 통쨰로 옮기는 것, 필드와 행을 옮기는건 가능해도 테이블은 불가능
    "MOVE-CO..는 같은 필드 데이터만 이동.
 
 LOOP AT it_collect INTO wa_collect.
- CLEAR : wa_sbook, wa_move, wa_spfli.
+ CLEAR : wa_sbook, wa_move.
   MOVE-CORRESPONDING wa_collect TO wa_move.
-  READ TABLE it_scarr INTO wa_scarr
-  WITH KEY carrid = wa_move-carrid.
-  IF sy-subrc = 0.
-    wa_move-carrname = wa_scarr-carrname.  "MOVE wa_scarr-carrname TO wa_move-carrname. 와 같음.
-      "구조가 완전히 같다면 A = B 로 써도 옮길 수 있음.!!!!!
-    READ TABLE it_spfli INTO wa_spfli
-      WITH KEY carrid = wa_move-carrid
-               connid = wa_move-connid.
-      ENDIF.
-  IF sy-subrc = 0.
-      wa_move-cityfrom = wa_spfli-cityfrom.
-      wa_move-cityto = wa_spfli-cityto.
-ENDIF.
+
+*그동안은 select로 테이블을 불러왔지만 행만 불러오는 것도 가능함. 퍼포먼스는 떨어지지만 간편
+SELECT SINGLE carrname
+  FROM scarr
+  INTO wa_move-carrname
+  where carrid = wa_move-carrid.
+
+IF sy-subrc <> 0.
+  wa_move-carrname = '정보없음'.
+  ENDIF.
+
+SELECT SINGLE cityto, cityfrom
+  FROM spfli
+  INTO ( @wa_move-cityto, @wa_move-cityfrom )
+  WHERE carrid = @wa_move-carrid
+    AND connid = @wa_move-connid.
+
+IF sy-subrc <> 0.
+  wa_move-cityfrom = '정보없음'.
+    wa_move-cityto = '정보없음'.
+  ENDIF.
+
+
 APPEND wa_move TO it_move.
 
 ENDLOOP.
 
-*집계가 필요한 부분은 sbook안의 필드이기 떄문에 collect를 sbook 구조체로 만든것 거기에 carrid가 같은 scarr, spfli의 필드를 붙여준 것.
-*READ TABLE과 MOVE는 에러가 날 수 있음 값을 잘 보고 써야할듯
-*이렇게 한 작업을 끝내고 다시 쓸떄는 wa_move같은 애들을 CLEAR해줘야함
 
 ENDFORM.                      " DATA_RETRIEVAL
